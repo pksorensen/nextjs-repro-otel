@@ -63,31 +63,54 @@ async function qrRedirect(req: NextRequest, slug: string) {
 import {
     RandomIdGenerator,
 } from "@opentelemetry/sdk-trace-base"
-import { trace } from "@opentelemetry/api";
+ 
+import { type Span, trace } from '@opentelemetry/api';
+
+export async function otel<T>(
+    fnName: string,
+    fn: (...args: any[]) => Promise<T>,
+    ...props: any[]
+): Promise<T> {
+    const tracer = trace.getTracer(fnName);
+    return tracer.startActiveSpan(fnName, async (span: Span) => {
+       
+        try {
+            return await fn(...props);
+        } finally {
+            span.end();
+        }
+    });
+}
 
 function withTraceParent(res: NextResponse) {
     const spanContext = trace.getActiveSpan()?.spanContext();
-    if (spanContext)
+    if (spanContext) {
         res.cookies.set("traceparent", `00-${spanContext.traceId}-${spanContext.spanId}-0${spanContext.traceFlags}`);
+        res.headers.set("traceparent", `00-${spanContext.traceId}-${spanContext.spanId}-0${spanContext.traceFlags}`);
+    }
     return res;
 };
 export async function middleware(req: NextRequest) {
-    console.log("Middleware", [req.nextUrl, trace.getActiveSpan()?.spanContext(), req.headers.get("traceparent"), req.cookies.get("traceparent")?.value]);
+    return await otel("middleare", async () => {
+        console.log("Middleware", [req.nextUrl, trace.getActiveSpan()?.spanContext(), req.headers.get("traceparent"), req.cookies.get("traceparent")?.value]);
 
-    //if (!req.headers.get("traceparent")) {
-    //    req.headers.append("traceparent", req.cookies.get("traceparent")?.value ?? new RandomIdGenerator().generateTraceId());
+        if (!req.headers.get("traceparent")) {
+            const spanContext = trace.getActiveSpan()?.spanContext();
+            if (spanContext)
+                req.headers.append("traceparent", `00-${spanContext.traceId}-${spanContext.spanId}-0${spanContext.traceFlags}`);
 
-    //}
+        }
 
-    if (req.nextUrl.pathname.startsWith('/_next')) {
-        return withTraceParent(NextResponse.next());
-    }
-      
-    req.headers.append("x-url", req.url);
-    
-    var rsp = I18nMiddleware(req);
-     
-    return withTraceParent(rsp);
+        if (req.nextUrl.pathname.startsWith('/_next')) {
+            return withTraceParent(NextResponse.next());
+        }
+
+        req.headers.append("x-url", req.url);
+
+        var rsp = I18nMiddleware(req);
+
+        return withTraceParent(rsp);
+    });
 
 }
 //https://medium.com/rescale/optimizing-next-js-with-opentelemetry-f80b8028b0e3

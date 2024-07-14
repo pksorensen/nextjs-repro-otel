@@ -16,6 +16,7 @@
     "@types/node": "20.12.12",
     "@types/react": "18.3.3",
     "@types/react-dom": "18.3.0",
-    "typescript": "5.3.3"
+    "typescript": "5.3.3",
+    "@opentelemetry/sdk-trace-web": "1.25.1"
   }
 }
