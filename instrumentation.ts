@@ -123,7 +123,7 @@ import { BatchSpanProcessor, ConsoleSpanExporter, SimpleSpanProcessor, WebTracer
 export function register() {
     console.log("Instrumentation setup", [process.env.NEXT_RUNTIME, process.env.OTEL_DIAGNOSTIC_DEBUG, isRegistered]);
 
-    if (!isRegistered /*&& process.env.NEXT_RUNTIME == "edge"*/) {
+    if (!isRegistered && process.env.NEXT_RUNTIME == "edge") {
         isRegistered = true;
         diag.setLogger(new DiagConsoleLogger(), process.env.OTEL_DIAGNOSTIC_DEBUG ? DiagLogLevel.ALL : DiagLogLevel.INFO);
     
